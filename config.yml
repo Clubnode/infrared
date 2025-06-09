@@ -23,13 +23,13 @@ configredis:
   host: localhost
   pass:
   db: 0
-rejoinMessage: Please rejoin to verify your connection.
-blockedMessage: Your ip is blocked for suspicious activity.
-genericJoinResponse: There is no proxy associated with this domain. Please check your configuration.
+rejoinMessage: Please rejoin your server to verify your connection.
+blockedMessage: Your connection has been blocked, Please turn off your VPN.
+genericJoinResponse: There is no active server for this address. Please contact your administrator.
 genericping:
-  version: infrared
-  description: There is no proxy associated with this domain. Please check your configuration.
-  iconPath: 
+  version: MCSH LImited
+  description: There is no server available. Please check your dashboard.
+  iconPath: ./server-icon.png
 tableflip:
   enabled: false
   pidfile: infrared.pid
