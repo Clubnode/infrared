@@ -27,8 +27,8 @@ rejoinMessage: Please rejoin your server to verify your connection.
 blockedMessage: Your connection has been blocked, Please turn off your VPN.
 genericJoinResponse: There is no active server for this address. Please contact your administrator.
 genericping:
-  version: MCSH LImited
-  description: There is no server available. Please check your dashboard.
+  version: MCServerHost
+  description: \u00a7c\u00a7l\u2718 Server Not Found\u00a7r\n\u00a77\u00a7oDouble\u2011check the IP address and try reconnecting
   iconPath: ./server-icon.png
 tableflip:
   enabled: false
