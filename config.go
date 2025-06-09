@@ -82,6 +82,11 @@ type API struct {
 	Endpoint string `yaml:"endpoint"`
 }
 
+type RestAPI struct {
+	Enabled bool   `yaml:"enabled"`
+	Bind    string `yaml:"bind"`
+}
+
 type GlobalConfig struct {
 	Debug                bool   `yaml:"debug"`
 	ReceiveProxyProtocol bool   `yaml:"receiveProxyProtocol"`
@@ -97,6 +102,7 @@ type GlobalConfig struct {
 	Redis                Redis
 	ConfigRedis          Redis
 	API                  API
+	RestAPI              RestAPI
 	Prometheus           Service
 	GeoIP                GeoIP
 	GenericPing          GenericPing
@@ -162,6 +168,10 @@ var DefaultConfig = GlobalConfig{
 	API: API{
 		Enabled:  false,
 		Endpoint: "http://brussels.app.coritan.com:4000/dns/srv-records",
+	},
+	RestAPI: RestAPI{
+		Enabled: false,
+		Bind:    ":8080",
 	},
 	RejoinMessage:       "Please rejoin to verify your connection.",
 	BlockedMessage:      "Your ip is blocked for suspicious activity.",

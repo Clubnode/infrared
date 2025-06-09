@@ -217,6 +217,17 @@ func main() {
 		}
 	}
 
+	// Start REST API server if enabled
+	if infrared.Config.RestAPI.Enabled {
+		apiServer := infrared.NewAPIServer(&gateway, infrared.Config.RestAPI.Bind)
+		go func() {
+			log.Printf("Starting REST API server on %s", infrared.Config.RestAPI.Bind)
+			if err := apiServer.Start(); err != nil {
+				log.Printf("REST API server failed: %s", err)
+			}
+		}()
+	}
+
 	if !infrared.Config.UnderAttack {
 		go func() {
 			for {

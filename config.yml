@@ -6,11 +6,14 @@ underAttack: false
 connectionThreshold: 50
 trackBandwidth: false
 prometheus:
-  enabled: false
+  enabled: true
   bind: :9070
 api:
   enabled: true
   endpoint: http://brussels.app.coritan.com:4000/dns/srv-records
+restapi:
+  enabled: true
+  bind: :8080
 mojangAPIenabled: false
 geoip:
   enabled: false
