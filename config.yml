@@ -13,7 +13,7 @@ api:
   endpoint: http://brussels.app.coritan.com:4000/dns/srv-records
 restapi:
   enabled: true
-  bind: :8080
+  bind: 0.0.0.0:3000
 mojangAPIenabled: false
 geoip:
   enabled: false

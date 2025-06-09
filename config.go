@@ -171,7 +171,7 @@ var DefaultConfig = GlobalConfig{
 	},
 	RestAPI: RestAPI{
 		Enabled: false,
-		Bind:    ":8080",
+		Bind:    "0.0.0.0:3000",
 	},
 	RejoinMessage:       "Please rejoin to verify your connection.",
 	BlockedMessage:      "Your ip is blocked for suspicious activity.",
