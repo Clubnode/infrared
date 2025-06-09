@@ -301,10 +301,10 @@ func (gateway *Gateway) UpdateProxiesFromAPI(newConfigs []*ProxyConfig) error {
 
 	// Register new proxies
 	for _, cfg := range newConfigs {
-		proxy := &Proxy{Config: cfg}
-		uid := proxy.UID()
+		newProxy := &Proxy{Config: cfg}
+		uid := newProxy.UID()
 		newProxyUIDs[uid] = true
-		newProxies[uid] = proxy
+		newProxies[uid] = newProxy
 
 		// Check if this proxy already exists
 		if existingProxy, exists := gateway.apiProxies[uid]; exists {
@@ -312,7 +312,7 @@ func (gateway *Gateway) UpdateProxiesFromAPI(newConfigs []*ProxyConfig) error {
 			if !gateway.proxyConfigsEqual(existingProxy.Config, cfg) {
 				log.Printf("Updating proxy configuration for %s", uid)
 				gateway.CloseProxy(uid)
-				if err := gateway.RegisterProxy(proxy); err != nil {
+				if err := gateway.RegisterProxy(newProxy); err != nil {
 					log.Printf("Failed to register updated proxy %s; error: %s", uid, err)
 					continue
 				}
@@ -320,7 +320,7 @@ func (gateway *Gateway) UpdateProxiesFromAPI(newConfigs []*ProxyConfig) error {
 		} else {
 			// New proxy, register it
 			log.Printf("Adding new proxy %s", uid)
-			if err := gateway.RegisterProxy(proxy); err != nil {
+			if err := gateway.RegisterProxy(newProxy); err != nil {
 				log.Printf("Failed to register new proxy %s; error: %s", uid, err)
 				continue
 			}
@@ -328,7 +328,7 @@ func (gateway *Gateway) UpdateProxiesFromAPI(newConfigs []*ProxyConfig) error {
 	}
 
 	// Remove proxies that are no longer in the API response
-	for uid, proxy := range gateway.apiProxies {
+	for uid := range gateway.apiProxies {
 		if !newProxyUIDs[uid] {
 			log.Printf("Removing proxy %s (no longer in API)", uid)
 			gateway.CloseProxy(uid)
