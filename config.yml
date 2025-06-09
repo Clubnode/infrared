@@ -1,0 +1,35 @@
+debug: false
+receiveProxyProtocol: false
+useRedisConfigs: false
+underAttack: false
+connectionThreshold: 50
+trackBandwidth: false
+prometheus:
+  enabled: false
+  bind: :9070
+api:
+  enabled: false
+  bind: :5000
+mojangAPIenabled: false
+geoip:
+  enabled: false
+  databaseFile:
+  enableIprisk: false
+redis:
+  host: localhost
+  pass:
+  db: 0
+configredis:
+  host: localhost
+  pass:
+  db: 0
+rejoinMessage: Please rejoin to verify your connection.
+blockedMessage: Your ip is blocked for suspicious activity.
+genericJoinResponse: There is no proxy associated with this domain. Please check your configuration.
+genericping:
+  version: infrared
+  description: There is no proxy associated with this domain. Please check your configuration.
+  iconPath: 
+tableflip:
+  enabled: false
+  pidfile: infrared.pid
