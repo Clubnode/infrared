@@ -187,7 +187,11 @@ func (proxy *Proxy) handleLoginConnection(conn Conn, session Session) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("[i] %s with username %s connects through %s", session.connRemoteAddr, session.username, proxy.UID())
+	
+	// Log successful join event with username and IP
+	log.Printf("[JOIN] Player '%s' from IP %s successfully joined server %s (proxy: %s)", 
+		session.username, session.ip, proxyDomain, proxy.UID())
+	
 	playersConnected.With(prometheus.Labels{"host": proxyDomain}).Inc()
 	defer playersConnected.With(prometheus.Labels{"host": proxyDomain}).Dec()
 
