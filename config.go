@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -47,12 +48,6 @@ type ProxyConfig struct {
 	OfflineStatus     StatusConfig `json:"offlineStatus"`
 }
 
-type Redis struct {
-	Host string `yaml:"host"`
-	Pass string `yaml:"pass"`
-	DB   int    `yaml:"db"`
-}
-
 type Service struct {
 	Enabled bool   `yaml:"enabled"`
 	Bind    string `yaml:"bind"`
@@ -76,6 +71,17 @@ type Tableflip struct {
 	PIDfile string `yaml:"pidfile"`
 }
 
+type Redis struct {
+	Host string `yaml:"host"`
+	Pass string `yaml:"pass"`
+	DB   int    `yaml:"db"`
+}
+
+type API struct {
+	Enabled  bool   `yaml:"enabled"`
+	Endpoint string `yaml:"endpoint"`
+}
+
 type GlobalConfig struct {
 	Debug                bool   `yaml:"debug"`
 	ReceiveProxyProtocol bool   `yaml:"receiveProxyProtocol"`
@@ -87,8 +93,10 @@ type GlobalConfig struct {
 	ConnectionThreshold  uint64 `yaml:"connectionThreshold"`
 	TrackBandwidth       bool   `yaml:"trackBandwidth"`
 	UseRedisConfig       bool   `yaml:"useRedisConfigs"`
+	UseAPIConfig         bool   `yaml:"useAPIConfigs"`
 	Redis                Redis
 	ConfigRedis          Redis
+	API                  API
 	Prometheus           Service
 	GeoIP                GeoIP
 	GenericPing          GenericPing
@@ -100,6 +108,24 @@ type redisEvent struct {
 	Config json.RawMessage `json:"config"`
 }
 
+// API response structures
+type SRVRecord struct {
+	ID          int    `json:"id"`
+	Name        string `json:"name"`
+	Target      string `json:"target"`
+	Port        int    `json:"port"`
+	Priority    int    `json:"priority"`
+	Weight      int    `json:"weight"`
+	TTL         int    `json:"ttl"`
+	LastUpdated int64  `json:"last_updated"`
+}
+
+type APIResponse struct {
+	Domain      string      `json:"domain"`
+	TotalRecords int        `json:"total_records"`
+	SRVRecords  []SRVRecord `json:"srv_records"`
+}
+
 var (
 	Config GlobalConfig
 	rdb    *redis.Client
@@ -109,6 +135,7 @@ var DefaultConfig = GlobalConfig{
 	Debug:                false,
 	ReceiveProxyProtocol: false,
 	UseRedisConfig:       false,
+	UseAPIConfig:         false,
 	UnderAttack:          false,
 	ConnectionThreshold:  50,
 	TrackBandwidth:       false,
@@ -131,6 +158,10 @@ var DefaultConfig = GlobalConfig{
 		Host: "localhost",
 		Pass: "",
 		DB:   0,
+	},
+	API: API{
+		Enabled:  false,
+		Endpoint: "http://brussels.app.coritan.com:4000/dns/srv-records",
 	},
 	RejoinMessage:       "Please rejoin to verify your connection.",
 	BlockedMessage:      "Your ip is blocked for suspicious activity.",
@@ -661,4 +692,111 @@ func (cfg *ProxyConfig) watchRedis() {
 			cfg.removeCallback()
 		}
 	}
+}
+
+// LoadProxyConfigsFromAPI fetches proxy configurations from the API endpoint
+func LoadProxyConfigsFromAPI() ([]*ProxyConfig, error) {
+	log.Printf("Loading proxy configs from API: %s", Config.API.Endpoint)
+	
+	resp, err := http.Get(Config.API.Endpoint)
+	if err != nil {
+		log.Printf("Failed to fetch configs from API: %s", err)
+		// Return hardcoded default config if API fails
+		log.Println("Using hardcoded default configuration")
+		defaultCfg := HardcodedDefaultConfig()
+		return []*ProxyConfig{&defaultCfg}, nil
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("API returned status code %d", resp.StatusCode)
+		log.Println("Using hardcoded default configuration")
+		defaultCfg := HardcodedDefaultConfig()
+		return []*ProxyConfig{&defaultCfg}, nil
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("Failed to read API response: %s", err)
+		log.Println("Using hardcoded default configuration")
+		defaultCfg := HardcodedDefaultConfig()
+		return []*ProxyConfig{&defaultCfg}, nil
+	}
+
+	var apiResponse APIResponse
+	if err := json.Unmarshal(body, &apiResponse); err != nil {
+		log.Printf("Failed to parse API response: %s", err)
+		log.Println("Using hardcoded default configuration")
+		defaultCfg := HardcodedDefaultConfig()
+		return []*ProxyConfig{&defaultCfg}, nil
+	}
+
+	if len(apiResponse.SRVRecords) == 0 {
+		log.Println("No SRV records found in API response")
+		log.Println("Using hardcoded default configuration")
+		defaultCfg := HardcodedDefaultConfig()
+		return []*ProxyConfig{&defaultCfg}, nil
+	}
+
+	var cfgs []*ProxyConfig
+	for _, record := range apiResponse.SRVRecords {
+		cfg := createProxyConfigFromSRV(record)
+		cfgs = append(cfgs, &cfg)
+	}
+
+	log.Printf("Loaded %d proxy configs from API", len(cfgs))
+	return cfgs, nil
+}
+
+// WatchAPIConfigs periodically fetches configurations from the API
+func WatchAPIConfigs(out chan []*ProxyConfig) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			cfgs, err := LoadProxyConfigsFromAPI()
+			if err != nil {
+				log.Printf("Failed to reload configs from API: %s", err)
+				continue
+			}
+			out <- cfgs
+		}
+	}
+}
+
+// createProxyConfigFromSRV converts an SRV record to a ProxyConfig
+func createProxyConfigFromSRV(record SRVRecord) ProxyConfig {
+	// Extract domain from SRV record name
+	// Example: "_minecraft._tcp.pheonixsmp.mcsh.io" -> "pheonixsmp.mcsh.io"
+	domainName := extractDomainFromSRV(record.Name)
+	
+	cfg := DefaultProxyConfig()
+	cfg.DomainNames = []string{domainName}
+	cfg.ListenTo = ":25565"
+	cfg.ProxyTo = fmt.Sprintf("%s:%d", record.Target, record.Port)
+	cfg.Name = domainName
+	
+	// Set a more descriptive offline status
+	cfg.OfflineStatus = StatusConfig{
+		VersionName:    "Infrared",
+		ProtocolNumber: 757,
+		MaxPlayers:     20,
+		MOTD:           fmt.Sprintf("Server %s is currently offline", domainName),
+	}
+	
+	return cfg
+}
+
+// extractDomainFromSRV extracts the domain name from an SRV record name
+func extractDomainFromSRV(srvName string) string {
+	// SRV record format: "_service._protocol.domain"
+	// Example: "_minecraft._tcp.pheonixsmp.mcsh.io" -> "pheonixsmp.mcsh.io"
+	parts := strings.SplitN(srvName, ".", 3)
+	if len(parts) >= 3 {
+		return parts[2]
+	}
+	// Fallback: return the original name if parsing fails
+	return srvName
 }

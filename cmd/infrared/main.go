@@ -60,6 +60,7 @@ func main() {
 
 	var cfgs []*infrared.ProxyConfig
 	outCfgs := make(chan *infrared.ProxyConfig)
+	outAPIConfigs := make(chan []*infrared.ProxyConfig)
 
 	if infrared.Config.UseRedisConfig {
 		log.Println("Start watching redis for configs")
@@ -73,6 +74,16 @@ func main() {
 		cfgs, err = infrared.LoadProxyConfigsFromRedis()
 		if err != nil {
 			log.Printf("Failed loading proxy configs from redis; error: %s", err)
+			return
+		}
+	} else if infrared.Config.UseAPIConfig {
+		log.Println("Start watching API for configs")
+		go infrared.WatchAPIConfigs(outAPIConfigs)
+
+		log.Println("Loading proxy configs from API")
+		cfgs, err = infrared.LoadProxyConfigsFromAPI()
+		if err != nil {
+			log.Printf("Failed loading proxy configs from API; error: %s", err)
 			return
 		}
 	} else {
@@ -99,6 +110,8 @@ func main() {
 	}
 
 	gateway := infrared.Gateway{ReceiveProxyProtocol: infrared.Config.ReceiveProxyProtocol}
+	
+	// Handle individual proxy config updates (Redis/file-based)
 	go func() {
 		for {
 			cfg, ok := <-outCfgs
@@ -109,6 +122,28 @@ func main() {
 			proxy := &infrared.Proxy{Config: cfg}
 			if err := gateway.RegisterProxy(proxy); err != nil {
 				log.Println("Failed registering proxy; error:", err)
+			}
+		}
+	}()
+
+	// Handle bulk config updates from API
+	go func() {
+		for {
+			newCfgs, ok := <-outAPIConfigs
+			if !ok {
+				return
+			}
+
+			log.Printf("Received %d updated configs from API", len(newCfgs))
+			
+			// Clear existing proxies and register new ones
+			// Note: This is a simple approach. In production, you might want to
+			// implement a more sophisticated diff-based update mechanism
+			for _, cfg := range newCfgs {
+				proxy := &infrared.Proxy{Config: cfg}
+				if err := gateway.RegisterProxy(proxy); err != nil {
+					log.Printf("Failed registering proxy %s; error: %s", cfg.Name, err)
+				}
 			}
 		}
 	}()
