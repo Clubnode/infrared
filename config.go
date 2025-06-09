@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/go-redis/redis/v8"
-	"golang.org/x/net/context"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
@@ -47,12 +45,6 @@ type ProxyConfig struct {
 	OfflineStatus     StatusConfig `json:"offlineStatus"`
 }
 
-type Redis struct {
-	Host string `yaml:"host"`
-	Pass string `yaml:"pass"`
-	DB   int    `yaml:"db"`
-}
-
 type Service struct {
 	Enabled bool   `yaml:"enabled"`
 	Bind    string `yaml:"bind"`
@@ -86,29 +78,19 @@ type GlobalConfig struct {
 	UnderAttack          bool   `yaml:"underAttack"`
 	ConnectionThreshold  uint64 `yaml:"connectionThreshold"`
 	TrackBandwidth       bool   `yaml:"trackBandwidth"`
-	UseRedisConfig       bool   `yaml:"useRedisConfigs"`
-	Redis                Redis
-	ConfigRedis          Redis
 	Prometheus           Service
 	GeoIP                GeoIP
 	GenericPing          GenericPing
 	Tableflip            Tableflip
 }
 
-type redisEvent struct {
-	Name   string          `json:"name"`
-	Config json.RawMessage `json:"config"`
-}
-
 var (
 	Config GlobalConfig
-	rdb    *redis.Client
 )
 
 var DefaultConfig = GlobalConfig{
 	Debug:                false,
 	ReceiveProxyProtocol: false,
-	UseRedisConfig:       false,
 	UnderAttack:          false,
 	ConnectionThreshold:  50,
 	TrackBandwidth:       false,
@@ -121,16 +103,6 @@ var DefaultConfig = GlobalConfig{
 		Enabled:      false,
 		DatabaseFile: "",
 		EnableIprisk: false,
-	},
-	Redis: Redis{
-		Host: "localhost",
-		Pass: "",
-		DB:   0,
-	},
-	ConfigRedis: Redis{
-		Host: "localhost",
-		Pass: "",
-		DB:   0,
 	},
 	RejoinMessage:       "Please rejoin to verify your connection.",
 	BlockedMessage:      "Your ip is blocked for suspicious activity.",
@@ -521,108 +493,4 @@ func DefaultStatusResponse() protocol.Packet {
 	return status.ClientBoundResponse{
 		JSONResponse: protocol.String(bb),
 	}.Marshal()
-}
-
-func LoadProxyConfigsFromRedis() ([]*ProxyConfig, error) {
-	var cfgs []*ProxyConfig
-	rcfg := Config.ConfigRedis
-
-	ctx := context.Background()
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     rcfg.Host + ":6379",
-		Password: rcfg.Pass,
-		DB:       rcfg.DB,
-	})
-	_, err := rdb.Ping(ctx).Result()
-	if err != nil {
-		return nil, err
-	}
-
-	defer rdb.Close()
-
-	configList, err := rdb.Keys(ctx, "config:*").Result()
-	if err != nil {
-		return nil, err
-	}
-
-	if len(configList) == 0 {
-		return nil, errors.New("no configs were found")
-	}
-
-	for _, element := range configList {
-		config, err := rdb.Get(ctx, element).Result()
-		if err != nil {
-			return nil, err
-		}
-
-		cfg := DefaultProxyConfig()
-
-		err = json.Unmarshal([]byte(config), &cfg)
-		if err != nil {
-			return nil, err
-		}
-
-		cfg.Name = strings.Split(element, "config:")[1]
-		go cfg.watchRedis()
-
-		cfgs = append(cfgs, &cfg)
-	}
-
-	return cfgs, nil
-}
-
-func WatchRedisConfigs(out chan *ProxyConfig) error {
-	ctx := context.Background()
-	rcfg := Config.ConfigRedis
-	rdb = redis.NewClient(&redis.Options{
-		Addr:     rcfg.Host + ":6379",
-		Password: rcfg.Pass,
-		DB:       rcfg.DB,
-	})
-	_, err := rdb.Ping(ctx).Result()
-	if err != nil {
-		return err
-	}
-
-	defer rdb.Close()
-
-	subscriber := rdb.Subscribe(ctx, "infrared-add-config")
-	for {
-		msg, err := subscriber.ReceiveMessage(ctx)
-		if err != nil {
-			return err
-		}
-
-		var event redisEvent
-		if err := json.Unmarshal([]byte(msg.Payload), &event); err != nil {
-			return err
-		}
-
-		cfg := DefaultProxyConfig()
-		if err := json.Unmarshal(event.Config, &cfg); err != nil {
-			return err
-		}
-
-		cfg.Name = event.Name
-
-		go cfg.watchRedis()
-		out <- &cfg
-	}
-}
-
-func (cfg *ProxyConfig) watchRedis() {
-	ctx := context.Background()
-
-	subscriber := rdb.Subscribe(ctx, "infrared-delete-config")
-	for {
-		msg, err := subscriber.ReceiveMessage(ctx)
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		if msg.Payload == cfg.Name {
-			cfg.removeCallback()
-		}
-	}
 }
