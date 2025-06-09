@@ -136,6 +136,9 @@ func (proxy *Proxy) handleLoginConnection(conn Conn, session Session) error {
 	proxyDomain := proxy.DomainName()
 	proxyTo := proxy.ProxyTo()
 
+	// Log attempted connection
+	log.Printf("[ATTEMPT] Player '%s' is attempting to connect to %s", session.username, proxyDomain)
+
 	dialer, err := proxy.Dialer()
 	if err != nil {
 		return err
