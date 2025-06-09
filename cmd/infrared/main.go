@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/cloudflare/tableflip"
 	"github.com/haveachin/infrared"
-	"github.com/haveachin/infrared/api"
 	"log"
 	"os"
 	"os/signal"
@@ -146,10 +145,6 @@ func main() {
 				}
 			}
 		}()
-	}
-
-	if infrared.Config.Api.Enabled && !infrared.Config.UseRedisConfig {
-		go api.ListenAndServe(configPath, infrared.Config.Api.Bind)
 	}
 
 	if infrared.Config.GeoIP.Enabled {

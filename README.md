@@ -44,9 +44,6 @@ trackBandwidth: false
 prometheus:
   enabled: false
   bind: :9070
-api:
-  enabled: false
-  bind: :5000
 mojangAPIenabled: false
 geoip:
   enabled: false
@@ -78,9 +75,6 @@ Values can be left out if they don't deviate from the default, an empty config.y
   - `enabled` whether to enable to builtin prometheus exporter or not.
   - `bind` on what port/address to have the prometheus exporter listen on.
   - `bind2` what secondary port should be used when using tableflip.
-- api:
-  - `nabled` if the json http api should be enabled.
-  - `bind` on what port/address to have the api listen on.
 - genericping:
   - `version` what version should be sent with for an unknown domain status request.
   - `description` what description should be sent with for an unknown domain status request.
@@ -108,7 +102,7 @@ Values can be left out if they don't deviate from the default, an empty config.y
 - `debug` if debug logs should be enabled.
 - `connectionTreshold` at what amount of packets per second the underAttack mode should trigger.
 - `trackBandwith` whether or not bandwith usage should be tracked in prometheus (requires prometheusEnabled).
-- `useRedisConfigs` whether or not to get the proxy configs from redis (this will disable the builtin api).
+- `useRedisConfigs` whether or not to get the proxy configs from redis.
 
 ## Proxy Config
 
@@ -277,40 +271,6 @@ tableflip:
   pidfile: infrared.pid
 ```
 
-## API
-### Route examples
-GET `/proxies` will return
-```json
-[
-"config",
-"config2"
-]
-```
-
-GET `/proxies/{name}` will return
-```json
-{
-"domainNames": ["play.example.org"],
-"proxyTo": "backend.example.org:25566"
-}
-```
-
-POST `/proxies/{name}` with body
-```json
-{
-"domainNames": ["play.example.org"],
-"proxyTo": "backend.example.org:25566"
-}
-```
-will return
-```json
-{"success": true, "message": "the proxy has been succesfully added"}
-```
-
-DELETE `/proxies/{name}` will return 200(OK)
-
-GET `/` will return 200(OK)
-
 ## Used sources
 - [Minecraft protocol documentation](https://wiki.vg/Protocol)
 - [Minecraft protocol implementation in golang 1](https://github.com/specspace/plasma)
@@ -319,5 +279,4 @@ GET `/` will return 200(OK)
 - [Redis library for golang](https://github.com/go-redis/redis/v8)
 - [MMDB geoip library for golang](https://github.com/oschwald/geoip2-golang)
 - [Govalidator](https://github.com/asaskevich/govalidator)
-- [Mux router](https://github.com/gorilla/mux)
 - [Tableflip](https://github.com/cloudflare/tableflip)

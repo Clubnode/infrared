@@ -89,7 +89,6 @@ type GlobalConfig struct {
 	UseRedisConfig       bool   `yaml:"useRedisConfigs"`
 	Redis                Redis
 	ConfigRedis          Redis
-	Api                  Service
 	Prometheus           Service
 	GeoIP                GeoIP
 	GenericPing          GenericPing
@@ -116,10 +115,6 @@ var DefaultConfig = GlobalConfig{
 	Prometheus: Service{
 		Enabled: false,
 		Bind:    ":9070",
-	},
-	Api: Service{
-		Enabled: false,
-		Bind:    ":5000",
 	},
 	MojangAPIenabled: false,
 	GeoIP: GeoIP{
