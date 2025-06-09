@@ -6,17 +6,23 @@
 
 fork of [haveachin/infrared](https://github.com/haveachin/infrared)
 
-## Features
+## TODO
+- Make encryption check use 1.19 signatures
 
-- File-based configuration with hot-reloading
-- Multiple domains per proxy configuration
+## Added/changed Features
+
+- Default configurable placeholder for invalid domain and kick message
+- Antibot based on ip lookups, encryption checks, authentication checks, protocol checks and username lookups
+- Caching in redis server (can be used for multiple instances)
+- Added handshakes and blocked connections(multiple types) to prometheus exporter
+- Allow multiple domains in 1 configfile
+- Global .yml config
+- Removed docker and callback features
 - Status packet caching (per protocol version)
-- Bandwidth usage tracking through Prometheus
+- Bandwith usage tracking for proxy configs through prometheus
+- Use redis to get proxy configs ([lhridder/infrapi](https://github.com/lhridder/infrapi))
 - Live upgrades using [tableflip](https://github.com/cloudflare/tableflip)
 - Dual stack (both IPv4 and IPv6 are supported)
-- ProxyProtocol and RealIP support for IP forwarding
-- Prometheus metrics exporter
-- Connection threshold monitoring
 
 ## Command-Line Flags
 
@@ -31,18 +37,26 @@ fork of [haveachin/infrared](https://github.com/haveachin/infrared)
 ```yaml
 debug: false
 receiveProxyProtocol: false
+useRedisConfigs: false
 underAttack: false
 connectionThreshold: 50
 trackBandwidth: false
 prometheus:
   enabled: false
   bind: :9070
-  bind2: :9071
 mojangAPIenabled: false
 geoip:
   enabled: false
   databaseFile:
   enableIprisk: false
+redis:
+  host: localhost
+  pass:
+  db: 0
+configredis:
+  host: localhost
+  pass:
+  db: 0
 rejoinMessage: Please rejoin to verify your connection.
 blockedMessage: Your ip is blocked for suspicious activity.
 genericJoinResponse: There is no proxy associated with this domain. Please check your configuration.
@@ -55,7 +69,6 @@ tableflip:
   pidfile: infrared.pid
 ```
 Values can be left out if they don't deviate from the default, an empty config.yml is still required for startup.
-
 ### Fields
 - `receiveProxyProtocol` whether to allow for inbound proxyProtocol connections.
 - prometheus:
@@ -72,6 +85,14 @@ Values can be left out if they don't deviate from the default, an empty config.y
   - `databaseFile` where the .mmdb file is located for geoip lookups.
   - `enableIprisk` whether or not ip lookups should be done through iprisk.info.
 - `mojangAPIenabled` whether to enable mojang API username checks (only works if geoip is enabled).
+- redis:
+  - `host` what redis server to connect to when caching geoip and username lookups.
+  - `DB` what redis db should be used on the redis server.
+  - `pass` what password should be used when logging into the redis server.
+- configredis:
+  - `host` what redis server to connect to when fetching and watching configs.
+  - `DB` what redis db should be used on the redis server.
+  - `pass` what password should be used when logging into the redis server.
 - tableflip:
   - `enabled` whether or not tableflip should be used.
   - `pidfile` where the PID file used for tableflip is located.
@@ -81,6 +102,7 @@ Values can be left out if they don't deviate from the default, an empty config.y
 - `debug` if debug logs should be enabled.
 - `connectionTreshold` at what amount of packets per second the underAttack mode should trigger.
 - `trackBandwith` whether or not bandwith usage should be tracked in prometheus (requires prometheusEnabled).
+- `useRedisConfigs` whether or not to get the proxy configs from redis.
 
 ## Proxy Config
 
@@ -93,8 +115,7 @@ Values can be left out if they don't deviate from the default, an empty config.y
 | disconnectMessage | String    | false    | Sorry {{username}}, but the server is offline. | The message a client sees when he gets disconnected from Infrared due to the server on `proxyTo` won't respond. Currently available placeholders:<br>- `username` the username of player that tries to connect<br>- `now` the current server time<br>- `remoteAddress` the address of the client that tries to connect<br>- `localAddress` the local address of the server<br>- `domain` the domain of the proxy (same as `domainName`)<br>- `proxyTo` the address that the proxy proxies to (same as `proxyTo`)<br>- `listenTo` the address that Infrared listens on (same as `listenTo`) |
 | timeout           | Integer   | true     | 1000                                           | The time in milliseconds for the proxy to wait for a ping response before the host (the address you proxyTo) will be declared as offline. This "online check" will be resend for every new connection.                                                                                                                                                                                                                                                                                                                                                                                     |
 | proxyProtocol     | Boolean   | false    | false                                          | If Infrared should use HAProxy's Proxy Protocol for IP **forwarding**.<br>Warning: You should only ever set this to true if you now that the server you `proxyTo` is compatible.                                                                                                                                                                                                                                                                                                                                                                                                           |
-| realIp            | Boolean   | false    | false                                          | If Infrared should use TCPShield/RealIP Protocol for IP **forwarding**.<br>Warning: You should only ever set this to true if you now that the server you `proxyTo` is compatible.                                                                                                                                                                                                                                                                                                                                                                                                          |
-| allowCracked      | Boolean   | false    | false                                          | Whether to allow cracked (non-premium) Minecraft accounts to connect.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| realIp            | Boolean   | false    | false                                          | If Infrared should use TCPShield/RealIP Protocol for IP **forwarding**.<br>Warning: You should only ever set this to true if you now that the server you `proxyTo` is compatible.                                                                                                                                                                                                                                                                                                                                                                                                          |                                                                                                                                                                                                                                                                                                                                      |
 | onlineStatus      | Object    | false    |                                                | This is the response that Infrared will give when a client asks for the server status and the server is online.                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | offlineStatus     | Object    | false    | See [Response Status](#response-status)        | This is the response that Infrared will give when a client asks for the server status and the server is offline.                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
@@ -174,7 +195,6 @@ Values can be left out if they don't deviate from the default, an empty config.y
 The built-in prometheus exporter can be used to view metrics about infrareds operation.
 This can be used through `"prometheusEnabled": true` and `"prometheusBind": ":9070"` in `config.yml`
 It is recommended to firewall the prometheus exporter with an application like *ufw* or *iptables* to make it only accessible by your own Prometheus instance.
-
 ### Prometheus configuration:
 Example prometheus.yml configuration:
 ```yaml
@@ -191,14 +211,38 @@ scrape_configs:
   * **instance:** what infrared instance the amount of players are connected to.
   * **job:** what job was specified in the prometheus configuration.
 * infrared_handshakes: counter of the number of handshake packets received per instance, type and target:
-  * **Example response:** `infrared_handshakes{instance="vps1.example.com:9070",type="status",host="proxy.example.com"} 5`
+  * **Example response:** `infrared_handshakes{instance="vps1.example.com:9070",type="status",host="proxy.example.com",country="DE"} 5`
   * **instance:** what infrared instance handshakes were received on.
-  * **type:** the type of handshake received; "status", "login", "cancelled_invalid".
-  * **host:** the target host specified by the "Server Address" field in the handshake packet.
+  * **type:** the type of handshake received; "status", "login", "cancelled_host", "cancelled_encryption", "cancelled_name", "cancelled", "cancelled_authentication" and "cancelled_invalid".
+  * **country:** country where the player ip is from.
+  * **host:** the target host specified by the "Server Address" field in the handshake packet. [[1]](https://wiki.vg/Protocol#Handshaking)
+
+## Mitigation
+### GeoIP
+Infrared uses maxminds mmdb format for looking up the countries ips originate from.\
+The required GeoLite2-Country.mmdb/GeoLite2-City.mmdb can be downloaded from [maxmind](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data) for free by making an account.
+
+### Configuration
+The following configuration settings are recommended for optimal mitigation, keep in mind this requieres a local/online redis server for caching.
+```yaml
+debug: false
+mojangAPIenabled: true
+geoip:
+  enabled: true
+  databaseFile: GeoLite2-Country.mmdb
+redis:
+  host: localhost
+  pass:
+  db: 0
+```
+
+### System
+* Linux kernel >=5.8 (Debian >=11 or Ubuntu >=22.04)
+* Increasing `net.core.somaxconn` in sysctl to for example 50000 (default is 4096). Can be done with `sysctl net.core.somaxconn=50000`.
+* Increasing the `ulimit` to for example 500000 (default is 1024). Can be done with `ulimit -n 500000` when running in a terminal or `LimitNOFILE=500000` in a systemd service file.
 
 ## Tableflip
-[Tableflip](https://github.com/cloudflare/tableflip) allows for the golang application to be upgraded live by swapping the binary and creating a new process without killing off existing connections.
-
+[Tableflip](https://github.com/cloudflare/tableflip) allows for the golang application to be upgraded live by swapping the binary and creating a new process without killing off existing connections.\
 #### Systemd
 To use this feature running infrared under systemd is required, here an example of how the .service file should look:
 Upgrades can then be triggered with `systemctl reload infrared`.
@@ -220,7 +264,6 @@ LimitNPROC=500000
 [Install]
 WantedBy=multi-user.target
 ```
-
 #### Configuration
 ```yaml
 tableflip:
@@ -232,5 +275,8 @@ tableflip:
 - [Minecraft protocol documentation](https://wiki.vg/Protocol)
 - [Minecraft protocol implementation in golang 1](https://github.com/specspace/plasma)
 - [Minecraft protocol implementation in golang 2](https://github.com/Tnze/go-mc)
+- [Mojang api implementation in golang](https://github.com/Lukaesebrot/mojango)
+- [Redis library for golang](https://github.com/go-redis/redis/v8)
+- [MMDB geoip library for golang](https://github.com/oschwald/geoip2-golang)
 - [Govalidator](https://github.com/asaskevich/govalidator)
 - [Tableflip](https://github.com/cloudflare/tableflip)

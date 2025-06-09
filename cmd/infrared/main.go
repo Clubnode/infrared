@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"flag"
+	"fmt"
 	"github.com/cloudflare/tableflip"
 	"github.com/haveachin/infrared"
 	"log"
@@ -59,19 +61,35 @@ func main() {
 	var cfgs []*infrared.ProxyConfig
 	outCfgs := make(chan *infrared.ProxyConfig)
 
-	log.Printf("Loading proxy configs from %s", configPath)
-	cfgs, err = infrared.LoadProxyConfigsFromPath(configPath, false)
-	if err != nil {
-		log.Printf("Failed loading proxy configs from %s; error: %s", configPath, err)
-		return
-	}
+	if infrared.Config.UseRedisConfig {
+		log.Println("Start watching redis for configs")
+		go func() {
+			if err := infrared.WatchRedisConfigs(outCfgs); err != nil {
+				log.Println("Failed watching redis configs; error:", err)
+			}
+		}()
 
-	go func() {
-		if err := infrared.WatchProxyConfigFolder(configPath, outCfgs); err != nil {
-			log.Println("Failed watching config folder; error:", err)
-			log.Println("SYSTEM FAILURE: CONFIG WATCHER FAILED")
+		log.Println("Loading proxy configs from redis")
+		cfgs, err = infrared.LoadProxyConfigsFromRedis()
+		if err != nil {
+			log.Printf("Failed loading proxy configs from redis; error: %s", err)
+			return
 		}
-	}()
+	} else {
+		log.Printf("Loading proxy configs from %s", configPath)
+		cfgs, err = infrared.LoadProxyConfigsFromPath(configPath, false)
+		if err != nil {
+			log.Printf("Failed loading proxy configs from %s; error: %s", configPath, err)
+			return
+		}
+
+		go func() {
+			if err := infrared.WatchProxyConfigFolder(configPath, outCfgs); err != nil {
+				log.Println("Failed watching config folder; error:", err)
+				log.Println("SYSTEM FAILURE: CONFIG WATCHER FAILED")
+			}
+		}()
+	}
 
 	var proxies []*infrared.Proxy
 	for _, cfg := range cfgs {
@@ -98,6 +116,16 @@ func main() {
 	if infrared.Config.Tableflip.Enabled {
 		log.Println("Starting tableflip upgrade listener")
 
+		if _, err := os.Stat(infrared.Config.Tableflip.PIDfile); errors.Is(err, os.ErrNotExist) {
+			pid := fmt.Sprint(os.Getpid())
+			bb := []byte(pid)
+			err := os.WriteFile(infrared.Config.Tableflip.PIDfile, bb, os.ModePerm)
+			if err != nil {
+				log.Printf("Failed to set up PIDfile: %s", err)
+				return
+			}
+		}
+
 		var err error
 		infrared.Upg, err = tableflip.New(tableflip.Options{
 			PIDFile: infrared.Config.Tableflip.PIDfile,
@@ -119,6 +147,29 @@ func main() {
 		}()
 	}
 
+	if infrared.Config.GeoIP.Enabled {
+		log.Println("Loading GeoIPDB")
+		err := gateway.LoadDB()
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		log.Println("Loading Redis")
+		err = gateway.ConnectRedis()
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		if infrared.Config.MojangAPIenabled {
+			log.Println("Loading Mojang API instance")
+			gateway.LoadMojangAPI()
+			err := gateway.GenerateKeys()
+			if err != nil {
+				return
+			}
+		}
+	}
+
 	if infrared.Config.Prometheus.Enabled {
 		err := gateway.EnablePrometheus(infrared.Config.Prometheus.Bind)
 		if err != nil {
@@ -133,6 +184,14 @@ func main() {
 				}
 			}()
 		}
+	}
+
+	if !infrared.Config.UnderAttack {
+		go func() {
+			for {
+				gateway.ClearCps()
+			}
+		}()
 	}
 
 	log.Println("Starting gateway listeners")
