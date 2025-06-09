@@ -68,6 +68,8 @@ type Gateway struct {
 	rdb                  *redis.Client
 	publicKey            []byte
 	privateKey           *rsa.PrivateKey
+	apiProxies           map[string]*Proxy // Track API-managed proxies
+	apiProxiesMutex      sync.RWMutex
 }
 
 type Session struct {
@@ -123,6 +125,7 @@ func (gateway *Gateway) ListenAndServe(proxies []*Proxy) error {
 	}
 
 	gateway.closed = make(chan bool, len(proxies))
+	gateway.apiProxies = make(map[string]*Proxy)
 
 	for _, proxy := range proxies {
 		if err := gateway.RegisterProxy(proxy); err != nil {
@@ -284,6 +287,85 @@ func (gateway *Gateway) RegisterProxy(proxy *Proxy) error {
 		}
 	}()
 	return nil
+}
+
+// UpdateProxiesFromAPI updates the gateway with a new set of API-managed proxies
+// This handles both additions and removals
+func (gateway *Gateway) UpdateProxiesFromAPI(newConfigs []*ProxyConfig) error {
+	gateway.apiProxiesMutex.Lock()
+	defer gateway.apiProxiesMutex.Unlock()
+
+	// Create a map of new proxy UIDs for quick lookup
+	newProxyUIDs := make(map[string]bool)
+	newProxies := make(map[string]*Proxy)
+
+	// Register new proxies
+	for _, cfg := range newConfigs {
+		proxy := &Proxy{Config: cfg}
+		uid := proxy.UID()
+		newProxyUIDs[uid] = true
+		newProxies[uid] = proxy
+
+		// Check if this proxy already exists
+		if existingProxy, exists := gateway.apiProxies[uid]; exists {
+			// Proxy already exists, check if it needs updating
+			if !gateway.proxyConfigsEqual(existingProxy.Config, cfg) {
+				log.Printf("Updating proxy configuration for %s", uid)
+				gateway.CloseProxy(uid)
+				if err := gateway.RegisterProxy(proxy); err != nil {
+					log.Printf("Failed to register updated proxy %s; error: %s", uid, err)
+					continue
+				}
+			}
+		} else {
+			// New proxy, register it
+			log.Printf("Adding new proxy %s", uid)
+			if err := gateway.RegisterProxy(proxy); err != nil {
+				log.Printf("Failed to register new proxy %s; error: %s", uid, err)
+				continue
+			}
+		}
+	}
+
+	// Remove proxies that are no longer in the API response
+	for uid, proxy := range gateway.apiProxies {
+		if !newProxyUIDs[uid] {
+			log.Printf("Removing proxy %s (no longer in API)", uid)
+			gateway.CloseProxy(uid)
+		}
+	}
+
+	// Update the tracking map
+	gateway.apiProxies = newProxies
+
+	log.Printf("API proxy update complete: %d active proxies", len(gateway.apiProxies))
+	return nil
+}
+
+// proxyConfigsEqual compares two proxy configurations to see if they're equivalent
+func (gateway *Gateway) proxyConfigsEqual(cfg1, cfg2 *ProxyConfig) bool {
+	if cfg1 == nil || cfg2 == nil {
+		return cfg1 == cfg2
+	}
+
+	// Compare key fields that would affect proxy behavior
+	return cfg1.ProxyTo == cfg2.ProxyTo &&
+		cfg1.ListenTo == cfg2.ListenTo &&
+		len(cfg1.DomainNames) == len(cfg2.DomainNames) &&
+		gateway.stringSlicesEqual(cfg1.DomainNames, cfg2.DomainNames)
+}
+
+// stringSlicesEqual compares two string slices for equality
+func (gateway *Gateway) stringSlicesEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func (gateway *Gateway) listenAndServe(listener Listener, addr string) error {

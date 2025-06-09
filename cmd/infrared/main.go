@@ -126,7 +126,7 @@ func main() {
 		}
 	}()
 
-	// Handle bulk config updates from API
+	// Handle bulk config updates from API with proper cleanup
 	go func() {
 		for {
 			newCfgs, ok := <-outAPIConfigs
@@ -136,14 +136,10 @@ func main() {
 
 			log.Printf("Received %d updated configs from API", len(newCfgs))
 			
-			// Clear existing proxies and register new ones
-			// Note: This is a simple approach. In production, you might want to
-			// implement a more sophisticated diff-based update mechanism
-			for _, cfg := range newCfgs {
-				proxy := &infrared.Proxy{Config: cfg}
-				if err := gateway.RegisterProxy(proxy); err != nil {
-					log.Printf("Failed registering proxy %s; error: %s", cfg.Name, err)
-				}
+			// Update the gateway with the new configuration set
+			// This will handle both additions and removals
+			if err := gateway.UpdateProxiesFromAPI(newCfgs); err != nil {
+				log.Printf("Failed updating proxies from API; error: %s", err)
 			}
 		}
 	}()
