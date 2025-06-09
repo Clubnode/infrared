@@ -268,6 +268,23 @@ func DefaultProxyConfig() ProxyConfig {
 	}
 }
 
+func HardcodedDefaultConfig() ProxyConfig {
+	return ProxyConfig{
+		DomainNames:       []string{"example.com"},
+		ListenTo:          ":25565",
+		ProxyTo:           "127.0.0.1:25565",
+		Timeout:           1000,
+		DisconnectMessage: "Sorry {{username}}, but the server is offline.",
+		OfflineStatus: StatusConfig{
+			VersionName:    "Infrared",
+			ProtocolNumber: 757,
+			MaxPlayers:     20,
+			MOTD:           "Default server configuration - please add your own configs.",
+		},
+		AllowCracked: false,
+	}
+}
+
 func ReadFilePaths(path string, recursive bool) ([]string, error) {
 	if recursive {
 		return readFilePathsRecursively(path)
@@ -316,7 +333,18 @@ func readFilePaths(path string) ([]string, error) {
 func LoadProxyConfigsFromPath(path string, recursive bool) ([]*ProxyConfig, error) {
 	filePaths, err := ReadFilePaths(path, recursive)
 	if err != nil {
-		return nil, err
+		log.Printf("Warning: Could not read config directory %s: %s", path, err)
+		// Return hardcoded default config if directory doesn't exist or is empty
+		log.Println("Using hardcoded default configuration")
+		defaultCfg := HardcodedDefaultConfig()
+		return []*ProxyConfig{&defaultCfg}, nil
+	}
+
+	if len(filePaths) == 0 {
+		log.Printf("Warning: No config files found in %s", path)
+		log.Println("Using hardcoded default configuration")
+		defaultCfg := HardcodedDefaultConfig()
+		return []*ProxyConfig{&defaultCfg}, nil
 	}
 
 	var cfgs []*ProxyConfig
@@ -324,9 +352,17 @@ func LoadProxyConfigsFromPath(path string, recursive bool) ([]*ProxyConfig, erro
 	for _, filePath := range filePaths {
 		cfg, err := NewProxyConfigFromPath(filePath)
 		if err != nil {
-			return nil, err
+			log.Printf("Warning: Failed to load config from %s: %s", filePath, err)
+			continue
 		}
 		cfgs = append(cfgs, cfg)
+	}
+
+	// If no configs were successfully loaded, use hardcoded default
+	if len(cfgs) == 0 {
+		log.Println("Warning: No valid config files found, using hardcoded default configuration")
+		defaultCfg := HardcodedDefaultConfig()
+		return []*ProxyConfig{&defaultCfg}, nil
 	}
 
 	return cfgs, nil
