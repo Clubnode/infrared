@@ -1,6 +1,7 @@
 package infrared
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/haveachin/infrared/protocol"
 	"github.com/haveachin/infrared/protocol/handshaking"
@@ -11,6 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"log"
 	"net"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -127,6 +129,51 @@ func (proxy *Proxy) UIDs() []string {
 	return uids
 }
 
+// notifyServerStart makes an API call to start a server if the domain is a .mcsh.io domain
+func (proxy *Proxy) notifyServerStart(domain string) {
+	// Check if domain ends with .mcsh.io
+	if !strings.HasSuffix(strings.ToLower(domain), ".mcsh.io") {
+		return
+	}
+
+	// Extract subdomain by removing .mcsh.io
+	subdomain := strings.TrimSuffix(strings.ToLower(domain), ".mcsh.io")
+	if subdomain == "" {
+		return
+	}
+
+	// Make API call in a goroutine to avoid blocking
+	go func() {
+		apiURL := fmt.Sprintf("http://your-api-url/servers/start-server/%s", subdomain)
+		
+		req, err := http.NewRequest("POST", apiURL, bytes.NewBuffer([]byte{}))
+		if err != nil {
+			log.Printf("[API] Failed to create request for server start: %s", err)
+			return
+		}
+
+		req.Header.Set("Authorization", "Bearer 18b20fd9-5526-4b7a-9d2c-102e802feb78")
+		req.Header.Set("Content-Type", "application/json")
+
+		client := &http.Client{
+			Timeout: 10 * time.Second,
+		}
+
+		resp, err := client.Do(req)
+		if err != nil {
+			log.Printf("[API] Failed to notify server start for %s: %s", subdomain, err)
+			return
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			log.Printf("[API] Successfully notified server start for %s", subdomain)
+		} else {
+			log.Printf("[API] Server start notification failed for %s, status: %d", subdomain, resp.StatusCode)
+		}
+	}()
+}
+
 func (proxy *Proxy) handleLoginConnection(conn Conn, session Session) error {
 	hs, err := handshaking.UnmarshalServerBoundHandshake(session.handshakePacket)
 	if err != nil {
@@ -138,6 +185,9 @@ func (proxy *Proxy) handleLoginConnection(conn Conn, session Session) error {
 
 	// Log attempted connection
 	log.Printf("[ATTEMPT] Player '%s' is attempting to connect to %s", session.username, proxyDomain)
+
+	// Notify server start for .mcsh.io domains
+	proxy.notifyServerStart(proxyDomain)
 
 	dialer, err := proxy.Dialer()
 	if err != nil {
