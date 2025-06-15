@@ -341,7 +341,7 @@ func DefaultProxyConfig() ProxyConfig {
 		DomainNames:       []string{"localhost"},
 		ListenTo:          ":25565",
 		Timeout:           1000,
-		DisconnectMessage: "\\u00a7a\\u00a7lMCServerHost\\n\\n\\u00a77Hello {{username}},\\n\\nServers start automatically when you try to join.\\n\\nThis server is now starting up and will be available shortly.\\n\\nPlease wait a moment and try again.",
+		DisconnectMessage: "\\u00a7b\\u00a7lMCServerHost\\u00a7r\\n\\n\\u00a77Hello \\u00a7f{{username}}\\u00a77,\\n\\n\\u00a76This server is currently paused.\\n\\u00a77It will start automatically when you join.\\n\\n\\u00a7aPlease wait a few moments,\\nthen try reconnecting.\\n\\n\\u00a78Thank you for your patience!",
 		OfflineStatus: StatusConfig{
 			VersionName:    Config.GenericPing.Version,
 			ProtocolNumber: 0, // Will be set dynamically based on client's protocol
@@ -359,7 +359,7 @@ func HardcodedDefaultConfig() ProxyConfig {
 		ListenTo:          ":25565",
 		ProxyTo:           "127.0.0.1:25565",
 		Timeout:           1000,
-		DisconnectMessage: "\\u00a7a\\u00a7lMCServerHost\\n\\n\\u00a77Hello {{username}},\\n\\nServers start automatically when you try to join.\\n\\nThis server is now starting up and will be available shortly.\\n\\nPlease wait a moment and try again.",
+		DisconnectMessage: "\\u00a7b\\u00a7lMCServerHost\\u00a7r\\n\\n\\u00a77Hello \\u00a7f{{username}}\\u00a77,\\n\\n\\u00a76This server is currently paused.\\n\\n\\u00a77It will start automatically when you join.\\n\\n\\u00a7aPlease wait a few moments then try reconnecting.",
 		OfflineStatus: StatusConfig{
 			VersionName:    "MCServerHost",
 			ProtocolNumber: 0, // Will be set dynamically based on client's protocol
