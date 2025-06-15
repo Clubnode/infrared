@@ -314,7 +314,7 @@ func HardcodedDefaultConfig() ProxyConfig {
 		ListenTo:          ":25565",
 		ProxyTo:           "127.0.0.1:25565",
 		Timeout:           1000,
-		DisconnectMessage: "\\u00a77Hello {{username}},\\n\\nThis server is now starting up and will be available shortly.\\nServers start automatically when you try to join — please wait a moment and try again.",
+		DisconnectMessage: "\\u00a7a\\u00a77lMCServerHost\\n\\n\\u00a77Hello {{username}},\\n\\nThis server is now starting up and will be available shortly.\\nServers start automatically when you try to join.\\n\\nPlease wait a moment and try again.",
 		OfflineStatus: StatusConfig{
 			VersionName:    "MCServerHost",
 			MaxPlayers:     20,
