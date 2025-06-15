@@ -866,7 +866,7 @@ func createProxyConfigFromSRV(record SRVRecord) ProxyConfig {
 		VersionName:    "MCServerHost",
 		ProtocolNumber: 0, // Will be set dynamically based on client's protocol
 		MaxPlayers:     20,
-		MOTD:           "\\u00a7e\\u00a7l\\u23F8 Server Is Paused\\u00a7r\\n\\u00a77\\u00a7oJoin to auto-start the server, then try reconnecting"
+		MOTD:           "\\u00a7e\\u00a7l\\u2718 Server Is Paused\\u00a7r\\n\\u00a77\\u00a7oJoin to auto-start the server then try reconnecting",
 		IconPath:       "./server-icon.png", // Add the server icon path
 	}
 	
