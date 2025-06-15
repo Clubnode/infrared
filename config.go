@@ -298,7 +298,7 @@ func DefaultProxyConfig() ProxyConfig {
 		DomainNames:       []string{"localhost"},
 		ListenTo:          ":25565",
 		Timeout:           1000,
-		DisconnectMessage: "\\u00a7a\\u00a77lMCServerHost\\n\\n\\u00a77Hello {{username}},\\n\\nThis server is now starting up and will be available shortly.\\nServers start automatically when you try to join.\\n\\nPlease wait a moment and try again.",
+		DisconnectMessage: "\\u00a7a\\u00a7lMCServerHost\\n\\n\\u00a77Hello {{username}},\\n\\nThis server is now starting up and will be available shortly.\\nServers start automatically when you try to join.\\n\\nPlease wait a moment and try again.",
 		OfflineStatus: StatusConfig{
 			VersionName:    Config.GenericPing.Version,
 			MaxPlayers:     20,
