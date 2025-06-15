@@ -793,7 +793,7 @@ func createProxyConfigFromSRV(record SRVRecord) ProxyConfig {
 		VersionName:    "MCServerHost",
 		ProtocolNumber: 757,
 		MaxPlayers:     20,
-		MOTD:           "\\u00a7c\\u00a7l\\u2718 Server Is Offline\\u00a7r\\n\\u00a77\\u00a7oJoin the server to turn it on",
+		MOTD:           "\\u00a7c\\u00a7l\\u2718 Server Is Offline\\u00a7r\\n\\u00a77\\u00a7oJoin to auto-start the server",
 		IconPath:       "./server-icon.png", // Add the server icon path
 	}
 	
