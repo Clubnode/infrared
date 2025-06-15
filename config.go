@@ -301,7 +301,6 @@ func DefaultProxyConfig() ProxyConfig {
 		DisconnectMessage: "\\u00a77Hello {{username}},\\n\\nThis server is now starting up and will be available shortly.\\nServers start automatically when you try to join — please wait a moment and try again.",
 		OfflineStatus: StatusConfig{
 			VersionName:    Config.GenericPing.Version,
-			ProtocolNumber: 757,
 			MaxPlayers:     20,
 			MOTD:           "Server is currently offline.",
 		},
@@ -318,7 +317,6 @@ func HardcodedDefaultConfig() ProxyConfig {
 		DisconnectMessage: "\\u00a77Hello {{username}},\\n\\nThis server is now starting up and will be available shortly.\\nServers start automatically when you try to join — please wait a moment and try again.",
 		OfflineStatus: StatusConfig{
 			VersionName:    "MCServerHost",
-			ProtocolNumber: 757,
 			MaxPlayers:     20,
 			MOTD:           "Server is currently offline.",
 		},
@@ -791,7 +789,6 @@ func createProxyConfigFromSRV(record SRVRecord) ProxyConfig {
 	// Set a more descriptive offline status with server icon and formatted MOTD
 	cfg.OfflineStatus = StatusConfig{
 		VersionName:    "MCServerHost",
-		ProtocolNumber: 757,
 		MaxPlayers:     20,
 		MOTD:           "\\u00a7c\\u00a7l\\u2718 Server Is Offline\\u00a7r\\n\\u00a77\\u00a7oJoin to auto-start the server then try reconnecting",
 		IconPath:       "./server-icon.png", // Add the server icon path
