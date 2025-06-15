@@ -341,7 +341,7 @@ func DefaultProxyConfig() ProxyConfig {
 		DomainNames:       []string{"localhost"},
 		ListenTo:          ":25565",
 		Timeout:           1000,
-		DisconnectMessage: "\\u00a7b\\u00a7lMCServerHost\\u00a7r\\n\\n\\u00a77Hello \\u00a7f{{username}}\\u00a77,\\n\\n\\u00a76This server is currently paused.\\n\\u00a77It will start automatically when you join.\\n\\n\\u00a7aPlease wait a few moments,\\nthen try reconnecting.\\n\\n\\u00a78Thank you for your patience!",
+		DisconnectMessage: "\\u00a7b\\u00a7lMCServerHost\\u00a7r\\n\\n\\u00a77Hello \\u00a7f{{username}}\\u00a77,\\n\\n\\u00a76This server is currently paused.\\n\\n\\u00a77It will start automatically when you join.\\n\\n\\u00a7aPlease wait a few moments then try reconnecting.",
 		OfflineStatus: StatusConfig{
 			VersionName:    Config.GenericPing.Version,
 			ProtocolNumber: 0, // Will be set dynamically based on client's protocol
