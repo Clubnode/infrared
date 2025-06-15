@@ -788,12 +788,12 @@ func createProxyConfigFromSRV(record SRVRecord) ProxyConfig {
 	cfg.ProxyTo = fmt.Sprintf("%s:%d", record.Target, record.Port)
 	cfg.Name = domainName
 	
-	// Set a more descriptive offline status with server icon
+	// Set a more descriptive offline status with server icon and formatted MOTD
 	cfg.OfflineStatus = StatusConfig{
 		VersionName:    "MCServerHost",
 		ProtocolNumber: 757,
 		MaxPlayers:     20,
-		MOTD:           fmt.Sprintf("Server %s is currently offline", domainName),
+		MOTD:           "\\u00a7c\\u00a7l\\u2718 Server Is Offline\\u00a7r\\n\\u00a77\\u00a7oJoin the server to turn it on",
 		IconPath:       "./server-icon.png", // Add the server icon path
 	}
 	
