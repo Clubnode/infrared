@@ -177,9 +177,9 @@ var DefaultConfig = GlobalConfig{
 	BlockedMessage:      "Your ip is blocked for suspicious activity.",
 	GenericJoinResponse: "There is no proxy associated with this domain. Please check your configuration.",
 	GenericPing: GenericPing{
-		Version:     "Infrared",
+		Version:     "MCServerHost",
 		Description: "There is no proxy associated with this domain. Please check your configuration.",
-		IconPath:    "",
+		IconPath:    "./server-icon.png",
 	},
 	Tableflip: Tableflip{
 		Enabled: false,
@@ -315,14 +315,14 @@ func HardcodedDefaultConfig() ProxyConfig {
 		ListenTo:          ":25565",
 		ProxyTo:           "127.0.0.1:25565",
 		Timeout:           1000,
-		DisconnectMessage: "Sorry {{username}}, but the server is offline.",
+		DisconnectMessage: "The server is offline.",
 		OfflineStatus: StatusConfig{
-			VersionName:    "Infrared",
+			VersionName:    "MCServerHost",
 			ProtocolNumber: 757,
 			MaxPlayers:     20,
 			MOTD:           "Default server configuration - please add your own configs.",
 		},
-		AllowCracked: false,
+		AllowCracked: true,
 	}
 }
 
@@ -790,7 +790,7 @@ func createProxyConfigFromSRV(record SRVRecord) ProxyConfig {
 	
 	// Set a more descriptive offline status
 	cfg.OfflineStatus = StatusConfig{
-		VersionName:    "Infrared",
+		VersionName:    "MCServerHost",
 		ProtocolNumber: 757,
 		MaxPlayers:     20,
 		MOTD:           fmt.Sprintf("Server %s is currently offline", domainName),
