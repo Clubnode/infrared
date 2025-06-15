@@ -98,6 +98,12 @@ func (proxy *Proxy) OfflineStatusPacket() (protocol.Packet, error) {
 	return proxy.Config.OfflineStatus.StatusResponsePacket()
 }
 
+func (proxy *Proxy) OfflineStatusPacketWithProtocol(protocolVersion int) (protocol.Packet, error) {
+	proxy.Config.Lock()
+	defer proxy.Config.Unlock()
+	return proxy.Config.OfflineStatus.StatusResponsePacketWithProtocol(protocolVersion)
+}
+
 func (proxy *Proxy) Timeout() time.Duration {
 	proxy.Config.RLock()
 	defer proxy.Config.RUnlock()
@@ -275,7 +281,7 @@ func (proxy *Proxy) handleStatusConnection(conn Conn, session Session) error {
 	_ = conn.SetDeadline(time.Time{})
 
 	if proxy.IsOnlineStatusConfigured() {
-		return proxy.handleStatusRequest(conn, true)
+		return proxy.handleStatusRequest(conn, true, int(hs.ProtocolVersion))
 	}
 
 	proto := int32(hs.ProtocolVersion)
@@ -305,7 +311,7 @@ func (proxy *Proxy) handleStatusConnection(conn Conn, session Session) error {
 			proxy.cacheStatusTime.Store(proto, time.Now())
 			proxy.cacheStatusRes.Store(proto, status.ClientBoundResponse{})
 
-			return proxy.handleStatusRequest(conn, false)
+			return proxy.handleStatusRequest(conn, false, int(hs.ProtocolVersion))
 		}
 
 		if proxy.RealIP() {
@@ -369,7 +375,7 @@ func (proxy *Proxy) handleStatusConnection(conn Conn, session Session) error {
 		if Config.Debug {
 			log.Printf("[i] Sent %s cached offline response for %s", session.connRemoteAddr, proxyUID)
 		}
-		return proxy.handleStatusRequest(conn, false)
+		return proxy.handleStatusRequest(conn, false, int(hs.ProtocolVersion))
 	}
 
 	entry, ok = proxy.cacheStatusRes.Load(proto)
@@ -451,7 +457,7 @@ func (proxy *Proxy) handleLoginRequest(conn Conn, session Session) error {
 	}.Marshal())
 }
 
-func (proxy *Proxy) handleStatusRequest(conn Conn, online bool) error {
+func (proxy *Proxy) handleStatusRequest(conn Conn, online bool, protocolVersion int) error {
 	var err error
 	var responsePk protocol.Packet
 	if online {
@@ -460,7 +466,8 @@ func (proxy *Proxy) handleStatusRequest(conn Conn, online bool) error {
 			return err
 		}
 	} else {
-		responsePk, err = proxy.OfflineStatusPacket()
+		// Use the client's protocol version for offline status
+		responsePk, err = proxy.OfflineStatusPacketWithProtocol(protocolVersion)
 		if err != nil {
 			return err
 		}

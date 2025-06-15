@@ -267,6 +267,49 @@ func (cfg StatusConfig) StatusResponsePacket() (protocol.Packet, error) {
 	return packet, nil
 }
 
+// StatusResponsePacketWithProtocol creates a status response packet with a specific protocol version
+func (cfg StatusConfig) StatusResponsePacketWithProtocol(protocolVersion int) (protocol.Packet, error) {
+	var samples []status.PlayerSampleJSON
+	for _, sample := range cfg.PlayerSamples {
+		samples = append(samples, status.PlayerSampleJSON{
+			Name: sample.Name,
+			ID:   sample.UUID,
+		})
+	}
+
+	responseJSON := status.ResponseJSON{
+		Version: status.VersionJSON{
+			Name:     cfg.VersionName,
+			Protocol: protocolVersion, // Use the client's protocol version
+		},
+		Players: status.PlayersJSON{
+			Max:    cfg.MaxPlayers,
+			Online: cfg.PlayersOnline,
+			Sample: samples,
+		},
+		Description: json.RawMessage(fmt.Sprintf("{\"text\":\"%s\"}", cfg.MOTD)),
+	}
+
+	if cfg.IconPath != "" {
+		img64, err := loadImageAndEncodeToBase64String(cfg.IconPath)
+		if err != nil {
+			return protocol.Packet{}, err
+		}
+		responseJSON.Favicon = fmt.Sprintf("data:image/png;base64,%s", img64)
+	}
+
+	bb, err := json.Marshal(responseJSON)
+	if err != nil {
+		return protocol.Packet{}, err
+	}
+
+	packet := status.ClientBoundResponse{
+		JSONResponse: protocol.String(bb),
+	}.Marshal()
+
+	return packet, nil
+}
+
 func loadImageAndEncodeToBase64String(path string) (string, error) {
 	if path == "" {
 		return "", nil
@@ -301,9 +344,10 @@ func DefaultProxyConfig() ProxyConfig {
 		DisconnectMessage: "\\u00a7a\\u00a7lMCServerHost\\n\\n\\u00a77Hello {{username}},\\n\\nThis server is now starting up and will be available shortly.\\nServers start automatically when you try to join.\\n\\nPlease wait a moment and try again.",
 		OfflineStatus: StatusConfig{
 			VersionName:    Config.GenericPing.Version,
-			ProtocolNumber: 765, // Use modern protocol version (1.20.4)
+			ProtocolNumber: 0, // Will be set dynamically based on client's protocol
 			MaxPlayers:     20,
 			MOTD:           "Server is currently offline.",
+			IconPath:       "./server-icon.png",
 		},
 		AllowCracked: true,
 	}
@@ -318,9 +362,10 @@ func HardcodedDefaultConfig() ProxyConfig {
 		DisconnectMessage: "\\u00a7a\\u00a7lMCServerHost\\n\\n\\u00a77Hello {{username}},\\n\\nThis server is now starting up and will be available shortly.\\nServers start automatically when you try to join.\\n\\nPlease wait a moment and try again.",
 		OfflineStatus: StatusConfig{
 			VersionName:    "MCServerHost",
-			ProtocolNumber: 765, // Use modern protocol version (1.20.4)
+			ProtocolNumber: 0, // Will be set dynamically based on client's protocol
 			MaxPlayers:     20,
 			MOTD:           "Server is currently offline.",
+			IconPath:       "./server-icon.png",
 		},
 		AllowCracked: true,
 	}
@@ -577,7 +622,35 @@ func DefaultStatusResponse() protocol.Packet {
 	responseJSON := status.ResponseJSON{
 		Version: status.VersionJSON{
 			Name:     Config.GenericPing.Version,
-			Protocol: 765, // Use modern protocol version (1.20.4)
+			Protocol: 0, // Will be set dynamically based on client's protocol
+		},
+		Players: status.PlayersJSON{
+			Max:    0,
+			Online: 0,
+		},
+		Description: json.RawMessage(fmt.Sprintf("{\"text\":\"%s\"}", Config.GenericPing.Description)),
+	}
+
+	if Config.GenericPing.IconPath != "" {
+		img64, err := loadImageAndEncodeToBase64String(Config.GenericPing.IconPath)
+		if err == nil {
+			responseJSON.Favicon = fmt.Sprintf("data:image/png;base64,%s", img64)
+		}
+	}
+
+	bb, _ := json.Marshal(responseJSON)
+
+	return status.ClientBoundResponse{
+		JSONResponse: protocol.String(bb),
+	}.Marshal()
+}
+
+// DefaultStatusResponseWithProtocol creates a default status response with a specific protocol version
+func DefaultStatusResponseWithProtocol(protocolVersion int) protocol.Packet {
+	responseJSON := status.ResponseJSON{
+		Version: status.VersionJSON{
+			Name:     Config.GenericPing.Version,
+			Protocol: protocolVersion, // Use the client's protocol version
 		},
 		Players: status.PlayersJSON{
 			Max:    0,
@@ -791,7 +864,7 @@ func createProxyConfigFromSRV(record SRVRecord) ProxyConfig {
 	// Set a more descriptive offline status with server icon and formatted MOTD
 	cfg.OfflineStatus = StatusConfig{
 		VersionName:    "MCServerHost",
-		ProtocolNumber: 765, // Use modern protocol version (1.20.4)
+		ProtocolNumber: 0, // Will be set dynamically based on client's protocol
 		MaxPlayers:     20,
 		MOTD:           "\\u00a7c\\u00a7l\\u2718 Server Is Offline\\u00a7r\\n\\u00a77\\u00a7oJoin to auto-start the server then try reconnecting",
 		IconPath:       "./server-icon.png", // Add the server icon path
