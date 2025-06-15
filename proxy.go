@@ -150,7 +150,7 @@ func (proxy *Proxy) notifyServerStart(domain string) {
 
 	// Make API call in a goroutine to avoid blocking
 	go func() {
-		apiURL := fmt.Sprintf("http://your-api-url/servers/start-server/%s", subdomain)
+		apiURL := fmt.Sprintf("http://brussels.app.coritan.com:4000/servers/start-server/%s", subdomain)
 		
 		req, err := http.NewRequest("POST", apiURL, bytes.NewBuffer([]byte{}))
 		if err != nil {
