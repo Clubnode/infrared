@@ -304,7 +304,7 @@ func DefaultProxyConfig() ProxyConfig {
 			MaxPlayers:     20,
 			MOTD:           "Server is currently offline.",
 		},
-		AllowCracked: false,
+		AllowCracked: true,
 	}
 }
 
