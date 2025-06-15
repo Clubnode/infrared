@@ -298,7 +298,7 @@ func DefaultProxyConfig() ProxyConfig {
 		DomainNames:       []string{"localhost"},
 		ListenTo:          ":25565",
 		Timeout:           1000,
-		DisconnectMessage: "Hello {{username}}, the server is offline.",
+		DisconnectMessage: "\\u00a77Hello {{username}},\\n\\nThis server is now starting up and will be available shortly.\\nServers start automatically when you try to join — please wait a moment and try again.",
 		OfflineStatus: StatusConfig{
 			VersionName:    Config.GenericPing.Version,
 			ProtocolNumber: 757,
@@ -315,7 +315,7 @@ func HardcodedDefaultConfig() ProxyConfig {
 		ListenTo:          ":25565",
 		ProxyTo:           "127.0.0.1:25565",
 		Timeout:           1000,
-		DisconnectMessage: "The server is offline.",
+		DisconnectMessage: "\\u00a77Hello {{username}},\\n\\nThis server is now starting up and will be available shortly.\\nServers start automatically when you try to join — please wait a moment and try again.",
 		OfflineStatus: StatusConfig{
 			VersionName:    "MCServerHost",
 			ProtocolNumber: 757,
