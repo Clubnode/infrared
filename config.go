@@ -622,35 +622,7 @@ func DefaultStatusResponse() protocol.Packet {
 	responseJSON := status.ResponseJSON{
 		Version: status.VersionJSON{
 			Name:     Config.GenericPing.Version,
-			Protocol: 0, // Will be set dynamically based on client's protocol
-		},
-		Players: status.PlayersJSON{
-			Max:    0,
-			Online: 0,
-		},
-		Description: json.RawMessage(fmt.Sprintf("{\"text\":\"%s\"}", Config.GenericPing.Description)),
-	}
-
-	if Config.GenericPing.IconPath != "" {
-		img64, err := loadImageAndEncodeToBase64String(Config.GenericPing.IconPath)
-		if err == nil {
-			responseJSON.Favicon = fmt.Sprintf("data:image/png;base64,%s", img64)
-		}
-	}
-
-	bb, _ := json.Marshal(responseJSON)
-
-	return status.ClientBoundResponse{
-		JSONResponse: protocol.String(bb),
-	}.Marshal()
-}
-
-// DefaultStatusResponseWithProtocol creates a default status response with a specific protocol version
-func DefaultStatusResponseWithProtocol(protocolVersion int) protocol.Packet {
-	responseJSON := status.ResponseJSON{
-		Version: status.VersionJSON{
-			Name:     Config.GenericPing.Version,
-			Protocol: protocolVersion, // Use the client's protocol version
+			Protocol: 757, // Static protocol version for unknown servers
 		},
 		Players: status.PlayersJSON{
 			Max:    0,

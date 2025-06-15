@@ -570,8 +570,8 @@ func (gateway *Gateway) handleUnknown(conn Conn, session Session, isLogin bool) 
 			return err
 		}
 
-		// Use the client's protocol version for unknown domain status response
-		err = conn.WritePacket(DefaultStatusResponseWithProtocol(int(session.ProtocolVersion)))
+		// Use static protocol version 757 for unknown servers
+		err = conn.WritePacket(DefaultStatusResponse())
 		if err != nil {
 			return err
 		}
